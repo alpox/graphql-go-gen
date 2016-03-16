@@ -454,3 +454,30 @@ input Hello {
 		printFail(expected, hello, t)
 	}
 }
+
+func TestSimpleExtendType(t *testing.T) {
+	gql := `
+type Hello {
+  test: Boolean
+}
+extend type Hello {
+  world: String
+}`
+	expected := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Hello",
+		Fields: graphql.Fields {
+			"test": &graphql.Field {
+				Type: graphql.Boolean,
+			},
+			"world": &graphql.Field {
+				Type: graphql.String,
+			},
+		},
+	})
+
+	ctx, _ := Generate(gql)
+	hello := ctx.Object("Hello")
+	if !reflect.DeepEqual(hello, expected) {
+		printFail(expected, hello, t)
+	}
+}

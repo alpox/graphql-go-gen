@@ -7,10 +7,6 @@ import (
 	"github.com/graphql-go/graphql/language/parser"
 )
 
-type Named interface {
-	GetName() *ast.Name
-}
-
 type Context struct {
 	objects  map[string]*graphql.Object
 	interfaces map[string]*graphql.Interface
@@ -18,6 +14,8 @@ type Context struct {
 	unions map[string]*graphql.Union
 	scalars map[string]*graphql.Scalar
 	inputs map[string]*graphql.InputObject
+
+	processed []int
 }
 
 func (g *Context) Object(which string) *graphql.Object {
@@ -241,10 +239,12 @@ func generateUnionTypes(ctx *Context, def *ast.UnionDefinition) ([]*graphql.Obje
 // Collaborate interfaces on first pass
 func walk(context *Context, astDoc *ast.Document) bool {
 	var found bool
-	for _, def := range astDoc.Definitions {
-		named := def.(Named)
-		if _, ok := context.GetObject(named.GetName().Value); ok {
-			continue
+	for astIndex, def := range astDoc.Definitions {
+		var foundInCycle bool
+		for _, storedAstIndex := range context.processed  {
+			if storedAstIndex == astIndex {
+				goto scanNext
+			}
 		}
 
 		switch def.(type) {
@@ -263,7 +263,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingInterface := graphql.NewInterface(iConfig)
 			context.interfaces[idef.Name.Value] = correspondingInterface
-			found = true
+			foundInCycle = true
 		case *ast.EnumDefinition:
 			edef := def.(*ast.EnumDefinition)
 			eConfig := graphql.EnumConfig {
@@ -277,7 +277,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingEnum := graphql.NewEnum(eConfig)
 			context.enums[edef.Name.Value] = correspondingEnum
-			found = true
+			foundInCycle = true
 		case *ast.ScalarDefinition:
 			sdef := def.(*ast.ScalarDefinition)
 			sConfig := graphql.ScalarConfig {
@@ -285,7 +285,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			}
 			correspondingScalar := graphql.NewScalar(sConfig)
 			context.scalars[sdef.Name.Value] = correspondingScalar
-			found = true
+			foundInCycle = true
 		case *ast.UnionDefinition:
 			udef := def.(*ast.UnionDefinition)
 			uConfig := graphql.UnionConfig {
@@ -302,7 +302,28 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingUnion := graphql.NewUnion(uConfig)
 			context.unions[udef.Name.Value] = correspondingUnion
-			found = true
+			foundInCycle = true
+		case *ast.TypeExtensionDefinition:
+			obdef := def.(*ast.TypeExtensionDefinition).Definition
+			ob := context.Object(obdef.Name.Value)
+			if ob == nil {
+				continue // No object with this type. Get in next cycle.
+			}
+			fields, err := generateFields(context, obdef)
+			if err != nil {
+				continue
+			} else if fields != nil {
+				for fieldName, field := range(fields) {
+				//	_, ok := ob.Fields()[fieldName]
+				//	if ok {
+				//		continue // Ignore field since its already implemented
+				//	}
+
+					// ** OVERRIDE ** --> Maybe change that behaviour later
+					ob.AddFieldConfig(fieldName, field)
+				}
+			}
+			foundInCycle = true
 		case *ast.ObjectDefinition:
 			obdef := def.(*ast.ObjectDefinition)
 			obConfig := graphql.ObjectConfig {
@@ -328,7 +349,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingObject := graphql.NewObject(obConfig)
 			context.objects[obdef.Name.Value] = correspondingObject
-			found = true
+			foundInCycle = true
 		case *ast.InputObjectDefinition:
 			idef := def.(*ast.InputObjectDefinition)
 			iConfig := graphql.InputObjectConfig {
@@ -344,8 +365,14 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingInput := graphql.NewInputObject(iConfig)
 			context.inputs[idef.Name.Value] = correspondingInput
+			foundInCycle = true
+		}
+
+		if foundInCycle {
+			context.processed = append(context.processed, astIndex)
 			found = true
 		}
+scanNext:
 	}
 	return found
 }
