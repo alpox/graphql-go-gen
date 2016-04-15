@@ -5,15 +5,16 @@ import (
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/language/ast"
 	"github.com/graphql-go/graphql/language/parser"
+	"strconv"
 )
 
 type Context struct {
-	objects  map[string]*graphql.Object
+	objects    map[string]*graphql.Object
 	interfaces map[string]*graphql.Interface
-	enums map[string]*graphql.Enum
-	unions map[string]*graphql.Union
-	scalars map[string]*graphql.Scalar
-	inputs map[string]*graphql.InputObject
+	enums      map[string]*graphql.Enum
+	unions     map[string]*graphql.Union
+	scalars    map[string]*graphql.Scalar
+	inputs     map[string]*graphql.InputObject
 
 	processed []int
 }
@@ -99,6 +100,32 @@ func mapType(ctx *Context, typ ast.Type) (graphql.Output, error) {
 	return nil, fmt.Errorf("Could not map type %s: Type not found!", typ)
 }
 
+func createValues(valType interface{}) interface{} {
+	value := valType.(ast.Value)
+	return value.GetValue()
+}
+
+func mapValue(ctx *Context, value interface{}) (interface{}, error) {
+	switch value.(type) {
+	case *ast.ListValue:
+		listValue := value.(*ast.ListValue)
+		return mapSlice(listValue.Values, createValues), nil
+	case *ast.FloatValue:
+		val := value.(*ast.FloatValue)
+		return strconv.ParseFloat(val.Value, 64)
+	case *ast.IntValue:
+		val := value.(*ast.IntValue)
+		return strconv.Atoi(val.Value)
+	case *ast.StringValue:
+		val := value.(*ast.StringValue)
+		return val.Value, nil
+	case *ast.BooleanValue:
+		val := value.(*ast.BooleanValue)
+		return val.Value, nil
+	}
+	return nil, nil
+}
+
 func generateFieldArguments(ctx *Context, def *ast.FieldDefinition) (graphql.FieldConfigArgument, error) {
 	args := make(graphql.FieldConfigArgument, len(def.Arguments))
 
@@ -108,12 +135,16 @@ func generateFieldArguments(ctx *Context, def *ast.FieldDefinition) (graphql.Fie
 			return nil, err
 		}
 
-		argConfig := &graphql.ArgumentConfig {
+		argConfig := &graphql.ArgumentConfig{
 			Type: typ,
 		}
 
 		if arg.DefaultValue != nil {
-			argConfig.DefaultValue = arg.DefaultValue.GetValue()
+			defaultValue, mapErr := mapValue(ctx, arg.DefaultValue)
+			if err != nil {
+				return nil, mapErr
+			}
+			argConfig.DefaultValue = defaultValue
 		}
 
 		args[arg.Name.Value] = argConfig
@@ -133,7 +164,7 @@ func generateInputFields(ctx *Context, def *ast.InputObjectDefinition) (graphql.
 			return nil, err
 		}
 
-		field := &graphql.InputObjectFieldConfig {
+		field := &graphql.InputObjectFieldConfig{
 			Type: typ,
 		}
 
@@ -151,7 +182,7 @@ func generateInputFields(ctx *Context, def *ast.InputObjectDefinition) (graphql.
 }
 
 func generateFields(ctx *Context, def interface{}) (graphql.Fields, error) {
-    var fieldDefs []*ast.FieldDefinition
+	var fieldDefs []*ast.FieldDefinition
 
 	switch def.(type) {
 	case *ast.ObjectDefinition:
@@ -169,7 +200,7 @@ func generateFields(ctx *Context, def interface{}) (graphql.Fields, error) {
 			return nil, err
 		}
 
-		field :=  &graphql.Field {
+		field := &graphql.Field{
 			Type: typ,
 		}
 
@@ -194,7 +225,7 @@ func generateEnumValues(def *ast.EnumDefinition) graphql.EnumValueConfigMap {
 	enumMap := make(graphql.EnumValueConfigMap, len(def.Values))
 
 	for i, valueConfig := range def.Values {
-		enumMap[valueConfig.Name.Value] = &graphql.EnumValueConfig {
+		enumMap[valueConfig.Name.Value] = &graphql.EnumValueConfig{
 			Value: i,
 		}
 	}
@@ -210,8 +241,8 @@ func generateInterfaces(ctx *Context, obdef *ast.ObjectDefinition) ([]*graphql.I
 		if lookupIface, ok := ctx.interfaces[iface.Name.Value]; ok {
 			ifaces[i] = lookupIface
 		} else {
-			return nil, fmt.Errorf("An interface with name %s was not declared and can therefore not be " +
-			"implemented to object %s\n", iface.Name.Value, obdef.Name.Value)
+			return nil, fmt.Errorf("An interface with name %s was not declared and can therefore not be "+
+				"implemented to object %s\n", iface.Name.Value, obdef.Name.Value)
 		}
 	}
 	if len(ifaces) > 0 {
@@ -226,8 +257,8 @@ func generateUnionTypes(ctx *Context, def *ast.UnionDefinition) ([]*graphql.Obje
 		if ob, ok := ctx.objects[utyp.Name.Value]; ok {
 			uTypes[i] = ob
 		} else {
-			return nil, fmt.Errorf("An object with name %s was not declared and can therefore not be " +
-			"implemented in union %s\n", utyp.Name.Value, def.Name.Value)
+			return nil, fmt.Errorf("An object with name %s was not declared and can therefore not be "+
+				"implemented in union %s\n", utyp.Name.Value, def.Name.Value)
 		}
 	}
 	if len(uTypes) > 0 {
@@ -241,7 +272,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 	var found bool
 	for astIndex, def := range astDoc.Definitions {
 		var foundInCycle bool
-		for _, storedAstIndex := range context.processed  {
+		for _, storedAstIndex := range context.processed {
 			if storedAstIndex == astIndex {
 				goto scanNext
 			}
@@ -251,7 +282,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 		case *ast.InterfaceDefinition:
 			idef := def.(*ast.InterfaceDefinition)
 
-			iConfig := graphql.InterfaceConfig {
+			iConfig := graphql.InterfaceConfig{
 				Name: idef.Name.Value,
 			}
 			fields, err := generateFields(context, idef)
@@ -266,7 +297,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			foundInCycle = true
 		case *ast.EnumDefinition:
 			edef := def.(*ast.EnumDefinition)
-			eConfig := graphql.EnumConfig {
+			eConfig := graphql.EnumConfig{
 				Name: edef.Name.Value,
 			}
 
@@ -280,7 +311,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			foundInCycle = true
 		case *ast.ScalarDefinition:
 			sdef := def.(*ast.ScalarDefinition)
-			sConfig := graphql.ScalarConfig {
+			sConfig := graphql.ScalarConfig{
 				Name: sdef.Name.Value,
 			}
 			correspondingScalar := graphql.NewScalar(sConfig)
@@ -288,7 +319,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			foundInCycle = true
 		case *ast.UnionDefinition:
 			udef := def.(*ast.UnionDefinition)
-			uConfig := graphql.UnionConfig {
+			uConfig := graphql.UnionConfig{
 				Name: udef.Name.Value,
 			}
 
@@ -313,11 +344,11 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			if err != nil {
 				continue
 			} else if fields != nil {
-				for fieldName, field := range(fields) {
-				//	_, ok := ob.Fields()[fieldName]
-				//	if ok {
-				//		continue // Ignore field since its already implemented
-				//	}
+				for fieldName, field := range fields {
+					//	_, ok := ob.Fields()[fieldName]
+					//	if ok {
+					//		continue // Ignore field since its already implemented
+					//	}
 
 					// ** OVERRIDE ** --> Maybe change that behaviour later
 					ob.AddFieldConfig(fieldName, field)
@@ -326,14 +357,14 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			foundInCycle = true
 		case *ast.ObjectDefinition:
 			obdef := def.(*ast.ObjectDefinition)
-			obConfig := graphql.ObjectConfig {
+			obConfig := graphql.ObjectConfig{
 				Name: obdef.Name.Value,
 			}
 
 			// Include interfaces
 			ifaces, err := generateInterfaces(context, obdef)
 			if err != nil {
-				continue // Get i next cycle 
+				continue // Get i next cycle
 			}
 			if ifaces != nil {
 				obConfig.Interfaces = ifaces
@@ -352,7 +383,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			foundInCycle = true
 		case *ast.InputObjectDefinition:
 			idef := def.(*ast.InputObjectDefinition)
-			iConfig := graphql.InputObjectConfig {
+			iConfig := graphql.InputObjectConfig{
 				Name: idef.Name.Value,
 			}
 
@@ -372,17 +403,17 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			context.processed = append(context.processed, astIndex)
 			found = true
 		}
-scanNext:
+	scanNext:
 	}
 	return found
 }
 
 func Generate(source string) (*Context, error) {
-	astDoc, err := parser.Parse(parser.ParseParams {
+	astDoc, err := parser.Parse(parser.ParseParams{
 		Source: source,
-		Options: parser.ParseOptions {
+		Options: parser.ParseOptions{
 			NoLocation: true,
-			NoSource: false,
+			NoSource:   false,
 		},
 	})
 
@@ -398,7 +429,8 @@ func Generate(source string) (*Context, error) {
 	context.unions = make(map[string]*graphql.Union)
 	context.objects = make(map[string]*graphql.Object)
 
-	for walk(context, astDoc) { }
+	for walk(context, astDoc) {
+	}
 
 	return context, nil
 }

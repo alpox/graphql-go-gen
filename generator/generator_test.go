@@ -1,13 +1,13 @@
 package generator
 
 import (
-	"reflect"
-	"testing"
 	"fmt"
-	"strings"
-	"regexp"
-	"github.com/graphql-go/graphql"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/graphql-go/graphql"
+	"reflect"
+	"regexp"
+	"strings"
+	"testing"
 )
 
 func matchStrings(exp, got string) bool {
@@ -42,10 +42,10 @@ func compareLines(str1, str2 string) {
 	lastExp := -1
 	lastGot := -1
 	for nextLineMatch(l1, l2, &index1, &index2) {
-		if index1 - lastExp > 1 || index2 - lastGot > 1 {
+		if index1-lastExp > 1 || index2-lastGot > 1 {
 			// Unmatching lines in between!
-			unmatched := l1[lastExp+1:index1]
-			unmatchedGot := l2[lastGot+1:index2]
+			unmatched := l1[lastExp+1 : index1]
+			unmatchedGot := l2[lastGot+1 : index2]
 			fmt.Println("-----------------------------------------------")
 			fmt.Println("Mismatch. Expected:")
 			fmt.Println(strings.Join(unmatched, "\n"))
@@ -57,9 +57,9 @@ func compareLines(str1, str2 string) {
 		lastGot = index2
 	}
 
-	if len(l1) - 1 > lastExp {
-		unmatched := l1[lastExp+1:len(l1)-1]
-		unmatchedGot := l2[lastGot+1:len(l2)-1]
+	if len(l1)-1 > lastExp {
+		unmatched := l1[lastExp+1 : len(l1)-1]
+		unmatchedGot := l2[lastGot+1 : len(l2)-1]
 		fmt.Println("Mismatch. Expected:\n")
 		fmt.Println(strings.Join(unmatched, "\n"))
 		fmt.Println("\nGot:\n")
@@ -79,14 +79,24 @@ func TestSimpleType(t *testing.T) {
 	gql := `
 type Oncle {
 	pipe: ID
+	five(argument: [String] = ["String", "String"] ): String
 }
 	`
 
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Oncle",
-		Fields: graphql.Fields {
-			"pipe": &graphql.Field {
+		Fields: graphql.Fields{
+			"pipe": &graphql.Field{
 				Type: graphql.ID,
+			},
+			"five": &graphql.Field{
+				Type: graphql.String,
+				Args: graphql.FieldConfigArgument{
+					"argument": &graphql.ArgumentConfig{
+						Type:         graphql.NewList(graphql.String),
+						DefaultValue: []interface{}{"String", "String"},
+					},
+				},
 			},
 		},
 	})
@@ -109,21 +119,21 @@ type p {
 interface e {}
 	`
 
-	e := graphql.NewInterface(graphql.InterfaceConfig {
+	e := graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "e",
 	})
-	p := graphql.NewObject(graphql.ObjectConfig {
+	p := graphql.NewObject(graphql.ObjectConfig{
 		Name: "p",
-		Fields: graphql.Fields {
-			"feld": &graphql.Field {
+		Fields: graphql.Fields{
+			"feld": &graphql.Field{
 				Type: e,
 			},
 		},
 	})
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Oncle",
-		Fields: graphql.Fields {
-			"pipe": &graphql.Field {
+		Fields: graphql.Fields{
+			"pipe": &graphql.Field{
 				Type: p,
 			},
 		},
@@ -145,8 +155,8 @@ type Oncle {
 
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Oncle",
-		Fields: graphql.Fields {
-			"pipe": &graphql.Field {
+		Fields: graphql.Fields{
+			"pipe": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.String),
 			},
 		},
@@ -159,7 +169,7 @@ type Oncle {
 	}
 }
 
-func TestSimpleInterface (t *testing.T) {
+func TestSimpleInterface(t *testing.T) {
 	gql := `
 interface World {}
 `
@@ -183,8 +193,8 @@ type Oncle implements World {}
 		Name: "World",
 	})
 	expected := graphql.NewObject(graphql.ObjectConfig{
-		Name: "Oncle",
-		Interfaces: []*graphql.Interface {world},
+		Name:       "Oncle",
+		Interfaces: []*graphql.Interface{world},
 	})
 
 	ctx, _ := Generate(gql)
@@ -203,12 +213,12 @@ type Oncle implements World, Balloon {}
 	world := graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "World",
 	})
-	balloon := graphql.NewInterface(graphql.InterfaceConfig {
+	balloon := graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "Balloon",
 	})
 	expected := graphql.NewObject(graphql.ObjectConfig{
-		Name: "Oncle",
-		Interfaces: []*graphql.Interface {world, balloon},
+		Name:       "Oncle",
+		Interfaces: []*graphql.Interface{world, balloon},
 	})
 
 	ctx, _ := Generate(gql)
@@ -221,10 +231,10 @@ type Oncle implements World, Balloon {}
 func TestSingleValueEnum(t *testing.T) {
 	gql := `enum Hello { WORLD }`
 
-	expected := graphql.NewEnum(graphql.EnumConfig {
+	expected := graphql.NewEnum(graphql.EnumConfig{
 		Name: "Hello",
-		Values: graphql.EnumValueConfigMap {
-			"WORLD": &graphql.EnumValueConfig {
+		Values: graphql.EnumValueConfigMap{
+			"WORLD": &graphql.EnumValueConfig{
 				Value: 0,
 			},
 		},
@@ -240,13 +250,13 @@ func TestSingleValueEnum(t *testing.T) {
 func TestMultiValueEnum(t *testing.T) {
 	gql := `enum Hello { WORLD, HERE }`
 
-	expected := graphql.NewEnum(graphql.EnumConfig {
+	expected := graphql.NewEnum(graphql.EnumConfig{
 		Name: "Hello",
-		Values: graphql.EnumValueConfigMap {
-			"WORLD": &graphql.EnumValueConfig {
+		Values: graphql.EnumValueConfigMap{
+			"WORLD": &graphql.EnumValueConfig{
 				Value: 0,
 			},
-			"HERE": &graphql.EnumValueConfig {
+			"HERE": &graphql.EnumValueConfig{
 				Value: 1,
 			},
 		},
@@ -268,11 +278,11 @@ type Hello {
 
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Hello",
-		Fields: graphql.Fields {
-			"world": &graphql.Field {
+		Fields: graphql.Fields{
+			"world": &graphql.Field{
 				Type: graphql.String,
-				Args: graphql.FieldConfigArgument {
-					"flag": &graphql.ArgumentConfig {
+				Args: graphql.FieldConfigArgument{
+					"flag": &graphql.ArgumentConfig{
 						Type: graphql.Boolean,
 					},
 				},
@@ -296,12 +306,12 @@ type Hello {
 
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Hello",
-		Fields: graphql.Fields {
-			"world": &graphql.Field {
+		Fields: graphql.Fields{
+			"world": &graphql.Field{
 				Type: graphql.String,
-				Args: graphql.FieldConfigArgument {
-					"flag": &graphql.ArgumentConfig {
-						Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"flag": &graphql.ArgumentConfig{
+						Type:         graphql.NewNonNull(graphql.Boolean),
 						DefaultValue: true,
 					},
 				},
@@ -325,11 +335,11 @@ type Hello {
 
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Hello",
-		Fields: graphql.Fields {
-			"world": &graphql.Field {
+		Fields: graphql.Fields{
+			"world": &graphql.Field{
 				Type: graphql.String,
-				Args: graphql.FieldConfigArgument {
-					"things": &graphql.ArgumentConfig {
+				Args: graphql.FieldConfigArgument{
+					"things": &graphql.ArgumentConfig{
 						Type: graphql.NewList(graphql.String),
 					},
 				},
@@ -353,14 +363,14 @@ type Hello {
 
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Hello",
-		Fields: graphql.Fields {
-			"world": &graphql.Field {
+		Fields: graphql.Fields{
+			"world": &graphql.Field{
 				Type: graphql.String,
-				Args: graphql.FieldConfigArgument {
-					"argOne": &graphql.ArgumentConfig {
+				Args: graphql.FieldConfigArgument{
+					"argOne": &graphql.ArgumentConfig{
 						Type: graphql.Boolean,
 					},
-					"argTwo": &graphql.ArgumentConfig {
+					"argTwo": &graphql.ArgumentConfig{
 						Type: graphql.Int,
 					},
 				},
@@ -384,8 +394,8 @@ type World {}`
 		Name: "World",
 	})
 	expected := graphql.NewUnion(graphql.UnionConfig{
-		Name: "Hello",
-		Types: []*graphql.Object { world },
+		Name:  "Hello",
+		Types: []*graphql.Object{world},
 	})
 
 	ctx, _ := Generate(gql)
@@ -408,8 +418,8 @@ union Hello = Wor | ld`
 		Name: "ld",
 	})
 	expected := graphql.NewUnion(graphql.UnionConfig{
-		Name: "Hello",
-		Types: []*graphql.Object { wor, ld },
+		Name:  "Hello",
+		Types: []*graphql.Object{wor, ld},
 	})
 
 	ctx, _ := Generate(gql)
@@ -439,10 +449,10 @@ input Hello {
 	world: String
 }`
 
-	expected := graphql.NewInputObject(graphql.InputObjectConfig {
+	expected := graphql.NewInputObject(graphql.InputObjectConfig{
 		Name: "Hello",
-		Fields: graphql.InputObjectConfigFieldMap {
-			"world": &graphql.InputObjectFieldConfig {
+		Fields: graphql.InputObjectConfigFieldMap{
+			"world": &graphql.InputObjectFieldConfig{
 				Type: graphql.String,
 			},
 		},
@@ -465,11 +475,11 @@ extend type Hello {
 }`
 	expected := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Hello",
-		Fields: graphql.Fields {
-			"test": &graphql.Field {
+		Fields: graphql.Fields{
+			"test": &graphql.Field{
 				Type: graphql.Boolean,
 			},
-			"world": &graphql.Field {
+			"world": &graphql.Field{
 				Type: graphql.String,
 			},
 		},
