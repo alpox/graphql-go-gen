@@ -79,7 +79,6 @@ func TestSimpleType(t *testing.T) {
 	gql := `
 type Oncle {
 	pipe: ID
-	five(argument: [String] = ["String", "String"] ): String
 }
 	`
 
@@ -88,15 +87,6 @@ type Oncle {
 		Fields: graphql.Fields{
 			"pipe": &graphql.Field{
 				Type: graphql.ID,
-			},
-			"five": &graphql.Field{
-				Type: graphql.String,
-				Args: graphql.FieldConfigArgument{
-					"argument": &graphql.ArgumentConfig{
-						Type:         graphql.NewList(graphql.String),
-						DefaultValue: []interface{}{"String", "String"},
-					},
-				},
 			},
 		},
 	})
@@ -382,6 +372,39 @@ type Hello {
 	hello := ctx.Object("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
+	}
+}
+
+func TestWithArgumentAndComplexDefaultValueType(t *testing.T) {
+	gql := `
+type Oncle {
+	pipe: ID
+	five(argument: [String] = ["String", "String"] ): String
+}
+	`
+
+	expected := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Oncle",
+		Fields: graphql.Fields{
+			"pipe": &graphql.Field{
+				Type: graphql.ID,
+			},
+			"five": &graphql.Field{
+				Type: graphql.String,
+				Args: graphql.FieldConfigArgument{
+					"argument": &graphql.ArgumentConfig{
+						Type:         graphql.NewList(graphql.String),
+						DefaultValue: []interface{}{"String", "String"},
+					},
+				},
+			},
+		},
+	})
+
+	ctx, _ := Generate(gql)
+	oncle := ctx.Object("Oncle")
+	if !reflect.DeepEqual(oncle, expected) {
+		printFail(expected, oncle, t)
 	}
 }
 
