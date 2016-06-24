@@ -8,6 +8,13 @@ import (
 	"strconv"
 )
 
+type UpdateObjectFn      func(graphql.ObjectConfig) graphql.ObjectConfig
+type UpdateInterfaceFn	 func(graphql.InterfaceConfig) graphql.InterfaceConfig
+type UpdateEnumFn		 func(graphql.EnumConfig) graphql.EnumConfig
+type UpdateUnionFn		 func(graphql.UnionConfig) graphql.UnionConfig
+type UpdateScalarFn		 func(graphql.ScalarConfig) graphql.ScalarConfig
+type UpdateInputObjectFn func(graphql.InputObjectConfig) graphql.InputObjectConfig
+
 type Context struct {
 	objects    map[string]*graphql.Object
 	interfaces map[string]*graphql.Interface
@@ -15,6 +22,13 @@ type Context struct {
 	unions     map[string]*graphql.Union
 	scalars    map[string]*graphql.Scalar
 	inputs     map[string]*graphql.InputObject
+
+	objectConfigs    map[string]graphql.ObjectConfig
+	interfaceConfigs map[string]graphql.InterfaceConfig
+	enumConfigs      map[string]graphql.EnumConfig
+	unionConfigs     map[string]graphql.UnionConfig
+	scalarConfigs    map[string]graphql.ScalarConfig
+	inputConfigs     map[string]graphql.InputObjectConfig
 
 	processed []int
 }
@@ -63,6 +77,142 @@ func (g *Context) GetObject(which string) (graphql.Output, bool) {
 		return i, true
 	}
 	return nil, false
+}
+
+func (g *Context) GetObjectConfig(which string) (interface{}, bool) {
+	if i, ok := g.scalarConfigs[which]; ok {
+		return i, true
+	}
+	if i, ok := g.objectConfigs[which]; ok {
+		return i, true
+	}
+	if i, ok := g.interfaceConfigs[which]; ok {
+		return i, true
+	}
+	if i, ok := g.unionConfigs[which]; ok {
+		return i, true
+	}
+	if i, ok := g.inputConfigs[which]; ok {
+		return i, true
+	}
+	if i, ok := g.enumConfigs[which]; ok {
+		return i, true
+	}
+	return nil, false
+}
+
+func (g *Context) UpdateObject(which string, config interface{}) error {
+	config, ok := g.GetObjectConfig(which)
+	if !ok {
+		return fmt.Errorf("Could not find Object with name %s.\n", which)
+	}
+	if _, ok := g.scalars[which]; ok {
+		g.scalars[which] = graphql.NewScalar(config.(graphql.ScalarConfig))
+	}
+	if _, ok := g.objects[which]; ok {
+		g.objects[which] = graphql.NewObject(config.(graphql.ObjectConfig))
+	}
+	if _, ok := g.interfaces[which]; ok {
+		g.interfaces[which] = graphql.NewInterface(config.(graphql.InterfaceConfig))
+	}
+	if _, ok := g.unions[which]; ok {
+		g.unions[which] = graphql.NewUnion(config.(graphql.UnionConfig))
+	}
+	if _, ok := g.inputs[which]; ok {
+		g.inputs[which] = graphql.NewInputObject(config.(graphql.InputObjectConfig))
+	}
+	if _, ok := g.enums[which]; ok {
+		g.enums[which] = graphql.NewEnum(config.(graphql.EnumConfig))
+	}
+	return nil
+}
+
+func (g *Context) Extend(which string, updateFn interface{}) *Context {
+	objectConfig, ok := g.GetObjectConfig(which)
+	if !ok {
+		panic("No object with name " + which + " found.\n")
+	}
+
+	switch objectConfig.(type) {
+	case graphql.ObjectConfig:
+		fn, ok := updateFn.(UpdateObjectFn)
+		if !ok {
+			panic("Given updatefunction (updateFn) has to be of type UpdateObjectFn!")
+		}
+
+		obConfig, ok := objectConfig.(graphql.ObjectConfig)
+		if !ok {
+			panic("Object found is not of type graphql.Object!\n")
+		}
+
+		fn(obConfig)
+		break
+	case graphql.InterfaceConfig:
+		fn, ok := updateFn.(UpdateInterfaceFn)
+		if !ok {
+			panic("Given updatefunction (updateFn) has to be of type UpdateObjectFn!")
+		}
+
+		obConfig, ok := objectConfig.(graphql.InterfaceConfig)
+		if !ok {
+			panic("Object found is not of type graphql.Object!\n")
+		}
+
+		fn(obConfig)
+		break
+	case graphql.UnionConfig:
+		fn, ok := updateFn.(UpdateUnionFn)
+		if !ok {
+			panic("Given updatefunction (updateFn) has to be of type UpdateUnionFn!")
+		}
+
+		obConfig, ok := objectConfig.(graphql.UnionConfig)
+		if !ok {
+			panic("Object found is not of type graphql.Union!")
+		}
+
+		fn(obConfig)
+		break
+	case graphql.ScalarConfig:
+		fn, ok := updateFn.(UpdateScalarFn)
+		if !ok {
+			panic("Given updatefunction (updateFn) has to be of type UpdateScalarFn!")
+		}
+
+		obConfig, ok := objectConfig.(graphql.ScalarConfig)
+		if !ok {
+			panic("Object found is not of type graphql.Scalar!")
+		}
+
+		fn(obConfig)
+		break
+	case graphql.EnumConfig:
+		fn, ok := updateFn.(UpdateEnumFn)
+		if !ok {
+			panic("Given updatefunction (updateFn) has to be of type UpdateEnumFn!")
+		}
+
+		obConfig, ok := objectConfig.(graphql.EnumConfig)
+		if !ok {
+			panic("Object found is not of type graphql.Enum!")
+		}
+
+		fn(obConfig)
+		break
+	case graphql.InputObjectConfig:
+		fn, ok := updateFn.(UpdateInputObjectFn)
+		if !ok {
+			panic("Given updatefunction (updateFn) has to be of type UpdateInputObjectFn!")
+		}
+
+		obConfig, ok := objectConfig.(graphql.InputObjectConfig)
+		if !ok {
+			panic("Object found is not of type graphql.InputObject!")
+		}
+
+		fn(obConfig)
+	}
+	return g
 }
 
 func mapType(ctx *Context, typ ast.Type) (graphql.Output, error) {
@@ -294,6 +444,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingInterface := graphql.NewInterface(iConfig)
 			context.interfaces[idef.Name.Value] = correspondingInterface
+			context.interfaceConfigs[idef.Name.Value] = iConfig
 			foundInCycle = true
 		case *ast.EnumDefinition:
 			edef := def.(*ast.EnumDefinition)
@@ -308,6 +459,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingEnum := graphql.NewEnum(eConfig)
 			context.enums[edef.Name.Value] = correspondingEnum
+			context.enumConfigs[edef.Name.Value] = eConfig
 			foundInCycle = true
 		case *ast.ScalarDefinition:
 			sdef := def.(*ast.ScalarDefinition)
@@ -316,6 +468,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 			}
 			correspondingScalar := graphql.NewScalar(sConfig)
 			context.scalars[sdef.Name.Value] = correspondingScalar
+			context.scalarConfigs[sdef.Name.Value] = sConfig
 			foundInCycle = true
 		case *ast.UnionDefinition:
 			udef := def.(*ast.UnionDefinition)
@@ -333,6 +486,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingUnion := graphql.NewUnion(uConfig)
 			context.unions[udef.Name.Value] = correspondingUnion
+			context.unionConfigs[udef.Name.Value] = uConfig
 			foundInCycle = true
 		case *ast.TypeExtensionDefinition:
 			obdef := def.(*ast.TypeExtensionDefinition).Definition
@@ -380,6 +534,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingObject := graphql.NewObject(obConfig)
 			context.objects[obdef.Name.Value] = correspondingObject
+			context.objectConfigs[obdef.Name.Value] = obConfig
 			foundInCycle = true
 		case *ast.InputObjectDefinition:
 			idef := def.(*ast.InputObjectDefinition)
@@ -396,6 +551,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 
 			correspondingInput := graphql.NewInputObject(iConfig)
 			context.inputs[idef.Name.Value] = correspondingInput
+			context.inputConfigs[idef.Name.Value] = iConfig
 			foundInCycle = true
 		}
 
@@ -428,6 +584,13 @@ func Generate(source string) (*Context, error) {
 	context.inputs = make(map[string]*graphql.InputObject)
 	context.unions = make(map[string]*graphql.Union)
 	context.objects = make(map[string]*graphql.Object)
+
+	context.interfaceConfigs = make(map[string]graphql.InterfaceConfig)
+	context.enumConfigs = make(map[string]graphql.EnumConfig)
+	context.scalarConfigs = make(map[string]graphql.ScalarConfig)
+	context.inputConfigs = make(map[string]graphql.InputObjectConfig)
+	context.unionConfigs = make(map[string]graphql.UnionConfig)
+	context.objectConfigs = make(map[string]graphql.ObjectConfig)
 
 	for walk(context, astDoc) {
 	}
