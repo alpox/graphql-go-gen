@@ -14,21 +14,14 @@ func TestBasicServer(t *testing.T) {
 		}
 	`
 
-	ctx, err := Generate(schema_string)
-	if err != nil {
-		fmt.Print(err)
-		t.FailNow()
-	}
+	schema, serr := Generate(schema_string).Fluent().
+		Extend("Query").
+			Field("hello").
+			Resolve(func(p graphql.ResolveParams) (interface{}, error) {
+				return "world", nil
+			}).
+		Schema()
 
-	ctx.Extend("Query", UpdateObjectFn(func(config graphql.ObjectConfig) graphql.ObjectConfig {
-		fields := config.Fields.(graphql.Fields)
-		fields["hello"].Resolve = func(p graphql.ResolveParams) (interface{}, error) {
-			return "world", nil
-		}
-		return config
-	}))
-
-	schema, serr := CreateSchemaFromContext(ctx)
 	if serr != nil {
 		fmt.Print(serr)
 		t.FailNow()
@@ -49,5 +42,8 @@ func TestBasicServer(t *testing.T) {
 		t.FailNow()
 	}
 	rJSON, _ := json.Marshal(r)
-	fmt.Printf("%s \n", rJSON)
+	if string(rJSON) != "{\"data\":{\"hello\":\"world\"}}" {
+		fmt.Print("Wrong json delivered by test schema!")
+		t.FailNow()
+	}
 }

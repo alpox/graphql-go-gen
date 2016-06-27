@@ -6,6 +6,7 @@ import (
 	"github.com/graphql-go/graphql/language/ast"
 	"github.com/graphql-go/graphql/language/parser"
 	"strconv"
+	"log"
 )
 
 type UpdateObjectFn      func(graphql.ObjectConfig) graphql.ObjectConfig
@@ -31,6 +32,10 @@ type Context struct {
 	inputConfigs     map[string]graphql.InputObjectConfig
 
 	processed []int
+}
+
+func (g *Context) Fluent() *FluentApi {
+	return &FluentApi{g}
 }
 
 func (g *Context) Object(which string) *graphql.Object {
@@ -564,7 +569,7 @@ func walk(context *Context, astDoc *ast.Document) bool {
 	return found
 }
 
-func Generate(source string) (*Context, error) {
+func Generate(source string) *Context {
 	astDoc, err := parser.Parse(parser.ParseParams{
 		Source: source,
 		Options: parser.ParseOptions{
@@ -574,7 +579,7 @@ func Generate(source string) (*Context, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 
 	context := &Context{}
@@ -595,5 +600,5 @@ func Generate(source string) (*Context, error) {
 	for walk(context, astDoc) {
 	}
 
-	return context, nil
+	return context
 }

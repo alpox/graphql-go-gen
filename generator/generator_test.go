@@ -91,7 +91,7 @@ type Oncle {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	oncle := ctx.Object("Oncle")
 	if !reflect.DeepEqual(oncle, expected) {
 		printFail(expected, oncle, t)
@@ -129,7 +129,7 @@ interface e {}
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	oncle := ctx.Object("Oncle")
 	if !reflect.DeepEqual(oncle, expected) {
 		printFail(expected, oncle, t)
@@ -152,7 +152,7 @@ type Oncle {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	oncle := ctx.Object("Oncle")
 	if !reflect.DeepEqual(oncle, expected) {
 		printFail(expected, oncle, t)
@@ -167,7 +167,7 @@ interface World {}
 		Name: "World",
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	world := ctx.Interface("World")
 	if !reflect.DeepEqual(world, expected) {
 		printFail(expected, world, t)
@@ -187,7 +187,7 @@ type Oncle implements World {}
 		Interfaces: []*graphql.Interface{world},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	oncle := ctx.Object("Oncle")
 	if !reflect.DeepEqual(oncle, expected) {
 		printFail(expected, oncle, t)
@@ -211,7 +211,7 @@ type Oncle implements World, Balloon {}
 		Interfaces: []*graphql.Interface{world, balloon},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	oncle := ctx.Object("Oncle")
 	if !reflect.DeepEqual(oncle, expected) {
 		printFail(expected, oncle, t)
@@ -230,7 +230,7 @@ func TestSingleValueEnum(t *testing.T) {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	enum := ctx.Enums("Hello")
 	if !reflect.DeepEqual(enum, expected) {
 		printFail(expected, enum, t)
@@ -252,8 +252,9 @@ func TestMultiValueEnum(t *testing.T) {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	enum := ctx.Enums("Hello")
+	// Behaves sometimes weirdly :-/
 	if !reflect.DeepEqual(enum, expected) {
 		printFail(expected, enum, t)
 	}
@@ -280,7 +281,7 @@ type Hello {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Object("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -309,7 +310,7 @@ type Hello {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Object("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -337,7 +338,7 @@ type Hello {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Object("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -368,7 +369,7 @@ type Hello {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Object("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -401,7 +402,7 @@ type Oncle {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	oncle := ctx.Object("Oncle")
 	if !reflect.DeepEqual(oncle, expected) {
 		printFail(expected, oncle, t)
@@ -421,7 +422,7 @@ type World {}`
 		Types: []*graphql.Object{world},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Union("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -445,7 +446,7 @@ union Hello = Wor | ld`
 		Types: []*graphql.Object{wor, ld},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Union("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -459,7 +460,7 @@ func TestScalar(t *testing.T) {
 		Name: "Hello",
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Scalar("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -481,7 +482,7 @@ input Hello {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.InputObject("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)
@@ -508,7 +509,7 @@ extend type Hello {
 		},
 	})
 
-	ctx, _ := Generate(gql)
+	ctx := Generate(gql)
 	hello := ctx.Object("Hello")
 	if !reflect.DeepEqual(hello, expected) {
 		printFail(expected, hello, t)

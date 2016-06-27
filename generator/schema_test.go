@@ -15,11 +15,7 @@ type Query {
 	a: Hello
 }`
 
-	ctx, errp := Generate(gql)
-	if errp != nil {
-		fmt.Print(errp)
-		t.FailNow()
-	}
+	ctx := Generate(gql)
 	_, err := CreateSchemaFromContext(ctx)
 	if err != nil {
 		fmt.Print(err)
