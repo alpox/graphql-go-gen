@@ -1,3 +1,3 @@
 # graphql-go-gen
 
-This project is not continued. You are welcome to fork it though :)
+This project is discontinued but you are welcome to fork it.
